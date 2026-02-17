@@ -3,7 +3,7 @@
  * Extracted for testability; index.ts delegates to these.
  */
 import type { AxiosInstance } from "axios";
-import { createErrorResult } from "./api.js";
+import { createErrorResult, normalizeRecordValues } from "./api.js";
 import { TOOLS } from "./tool-definitions.js";
 
 function getResponseData(error: unknown): { status?: number; headers?: unknown; data?: unknown } {
@@ -288,7 +288,7 @@ export async function handleToolCall(
 
     if (toolName === "create-record") {
       const objectSlug = args.object as string;
-      const values = args.values as Record<string, unknown>;
+      const values = normalizeRecordValues((args.values as Record<string, unknown>) ?? {});
       const path = `/objects/${objectSlug}/records`;
       try {
         const response = await api.post(path, { data: { values } });
@@ -318,7 +318,7 @@ export async function handleToolCall(
     if (toolName === "update-record") {
       const objectSlug = args.object as string;
       const recordId = args.recordId as string;
-      const values = args.values as Record<string, unknown>;
+      const values = normalizeRecordValues((args.values as Record<string, unknown>) ?? {});
       const path = `/objects/${objectSlug}/records/${recordId}`;
       try {
         const response = await api.patch(path, { data: { values } });

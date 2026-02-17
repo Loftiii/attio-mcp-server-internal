@@ -1,6 +1,7 @@
 /**
  * Unit tests (no API). Tool schema and validation error messages.
  */
+import { normalizeRecordValues } from "../api.js";
 import { getListToolsResponse, handleToolCall } from "../handlers.js";
 import { TOOLS } from "../tool-definitions.js";
 
@@ -70,5 +71,59 @@ describe("Validation errors (mock api)", () => {
     });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toMatch(/Tool not found|Error executing tool/);
+  });
+});
+
+describe("normalizeRecordValues (PATCH/POST record payload)", () => {
+  it("wraps string in [{ value }]", () => {
+    expect(normalizeRecordValues({ name: "Acme" })).toEqual({ name: [{ value: "Acme" }] });
+  });
+
+  it("wraps number and boolean in [{ value }]", () => {
+    expect(normalizeRecordValues({ count: 42 })).toEqual({ count: [{ value: 42 }] });
+    expect(normalizeRecordValues({ active: true })).toEqual({ active: [{ value: true }] });
+  });
+
+  it("converts array of primitives to array of value objects", () => {
+    expect(normalizeRecordValues({ tags: ["a", "b"] })).toEqual({
+      tags: [{ value: "a" }, { value: "b" }],
+    });
+  });
+
+  it("passes through array of value objects and strips attribute_type", () => {
+    expect(
+      normalizeRecordValues({
+        description: [{ value: "Text", attribute_type: "text" }],
+      })
+    ).toEqual({ description: [{ value: "Text" }] });
+  });
+
+  it("wraps single value object in array and strips attribute_type", () => {
+    expect(
+      normalizeRecordValues({
+        description: { value: "Only one", attribute_type: "text" },
+      })
+    ).toEqual({ description: [{ value: "Only one" }] });
+  });
+
+  it("preserves email_address and other non-value keys", () => {
+    expect(
+      normalizeRecordValues({
+        primary_email: [{ email_address: "hi@example.com" }],
+      })
+    ).toEqual({ primary_email: [{ email_address: "hi@example.com" }] });
+  });
+
+  it("skips attribute_type at top level", () => {
+    expect(normalizeRecordValues({ attribute_type: "text", name: "X" } as unknown as Record<string, unknown>)).toEqual(
+      { name: [{ value: "X" }] }
+    );
+  });
+
+  it("handles null/undefined by returning empty array for that key", () => {
+    expect(normalizeRecordValues({ name: null, desc: undefined } as unknown as Record<string, unknown>)).toEqual({
+      name: [],
+      desc: [],
+    });
   });
 });
